@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNSS Error Prediction System - ISRO</title>
+    <link rel="shortcut icon" href="./images/isro.jpg" type="image/x-icon">
+    <link
+    href="https://cdn.jsdelivr.net/npm/remixicon@4.7.0/fonts/remixicon.css"
+    rel="stylesheet"
+/>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-dark: #020a1a;
+            --primary-blue: #0a2a4e;
+            --accent-orange: #ff7c42;
+            --accent-cyan: #00e5ff;
+            --white: #e6f1ff;
+            --glass-bg: rgba(10, 42, 78, 0.5);
+            --glass-border: rgba(0, 229, 255, 0.2);
+            --gradient-bg: linear-gradient(160deg, #020a1a 0%, #0a2a4e 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            font-family: "Inter", sans-serif;
+            background: var(--primary-dark);
+            color: var(--white);
+            overflow-x: hidden;
+            cursor: default;
+        }
+
+
+        .circle {
+            height: 24px;
+            width: 24px;
+            border-radius: 24px;
+            background-color: black;
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 99999999;
+            /* so that it stays on top of all other elements */
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+
+        #warp-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1001;
+            pointer-events: none;
+            opacity: 0;
+            background: var(--primary-dark);
+        }
+
+        /* Navigation */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            background: rgba(2, 10, 26, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: transparent;
+            /* color: var(--white); */
+        }
+
+        .logo img {
+            height: 40px;
+        }
+
+        .logo span {
+            background: linear-gradient(#ee721e, #2186c8);
+            background-clip: text;
+            -webkit-text-stroke: 0.1px rgb(18, 17, 17);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            list-style: none;
+            gap: 1.5rem;
+        }
+
+        .nav-links li {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            font-weight: 500;
+        }
+
+        .nav-links li:not(.user-menu)::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: var(--accent-orange);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links li:not(.user-menu):hover::after,
+        .nav-links li.active::after {
+            width: 80%;
+        }
+
+        .nav-links li.active {
+            color: var(--accent-orange);
+        }
+
+        .mobile-menu {
+            display: none;
+            cursor: pointer;
+        }
+
+        .hamburger {
+            width: 25px;
+            height: 3px;
+            background: var(--white);
+            margin: 3px 0;
+            transition: 0.3s;
+        }
+
+        /* User Menu Dropdown */
+        .user-menu {
+            position: relative;
+            padding: 0 !important;
+        }
+        .hamburger-menu-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            height: 40px;
+            border-radius: 8px;
+        }
+        .hamburger-menu-btn .hamburger {
+            margin: 2px 0;
+        }
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background-color: var(--primary-blue);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            min-width: 160px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            z-index: 1002;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        .user-dropdown.show {
+            display: block;
+        }
+        .user-dropdown a {
+            color: var(--white);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            transition: background-color 0.2s ease;
+        }
+        .user-dropdown a:hover {
+            background-color: var(--glass-bg);
+        }
+
+        /* Page Sections */
+        .page-section {
+            min-height: 100vh;
+            padding: 100px 2rem 2rem;
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* landing page */
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            padding: 0;
+            margin-top: -80px;
+
+        }
+
+        .hero-content {
+            z-index: 2;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .hero h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            margin-bottom: 2.5rem;
+            opacity: 1;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: ;
+            align-items: center;
+
+        }
+
+        /* Base button styles */
+        .btn {
+            position: relative;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 50px;
+            /* Make it more rounded */
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            /* Smooth transition for all properties */
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                background-color 0.4s ease;
+        }
+
+        /* Glow effect using a pseudo-element */
+        .btn::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -6px;
+            margin: 0 auto;
+            height: 50%;
+            border-radius: 50px;
+            filter: blur(14px);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .btn_text {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Primary button styles */
+        .btn-primary {
+            background-color: var(--accent-orange);
+            color: var(--primary-dark);
+            margin-right: 25px;
+        }
+
+        .btn-primary::after {
+            background: var(--accent-orange);
+        }
+
+        /* Secondary button styles */
+        .btn-secondary {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid var(--accent-cyan);
+        }
+
+        .btn-secondary::after {
+            background: var(--accent-cyan);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-cyan);
+            color: var(--primary-dark);
+        }
+
+        /* HOVER EFFECT: Makes the button scale and glow */
+        .btn:hover {
+            transform: scale(1.1);
+        }
+
+        .btn:hover::after {
+            opacity: 0.8;
+        }
+
+        /* --- NEW HALLEY'S COMET ORBIT ANIMATION --- */
+
+        /* Keyframes for the parent orbit rotation */
+        @keyframes spin-clockwise {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin-counter-clockwise {
+            to {
+                transform: rotate(-360deg);
+            }
+        }
+
+        /* Keyframes for 3D depth effect with more complex, asymmetric paths */
+        @keyframes orbit-z-1 {
+            0% {
+                transform: translate(-5px, -70px) scale(0.4);
+                z-index: 5;
+            }
+
+            25% {
+                transform: translate(0px, -75px) scale(0.7);
+            }
+
+            50% {
+                transform: translate(5px, -70px) scale(1.1);
+                z-index: 15;
+            }
+
+            75% {
+                transform: translate(-2px, -65px) scale(0.8);
+            }
+
+            100% {
+                transform: translate(-5px, -70px) scale(0.4);
+                z-index: 5;
+            }
+        }
+
+        @keyframes orbit-z-2 {
+            0% {
+                transform: translate(10px, -80px) scale(0.5);
+                z-index: 5;
+            }
+
+            25% {
+                transform: translate(5px, -85px) scale(0.8);
+            }
+
+            50% {
+                transform: translate(-10px, -80px) scale(1.2);
+                z-index: 15;
+            }
+
+            75% {
+                transform: translate(-3px, -75px) scale(0.9);
+            }
+
+            100% {
+                transform: translate(10px, -80px) scale(0.5);
+                z-index: 5;
+            }
+        }
+
+        @keyframes orbit-z-3 {
+            0% {
+                transform: translate(-8px, -90px) scale(0.4);
+                z-index: 5;
+            }
+
+            25% {
+                transform: translate(-2px, -95px) scale(0.6);
+            }
+
+            50% {
+                transform: translate(8px, -90px) scale(1);
+                z-index: 15;
+            }
+
+            75% {
+                transform: translate(3px, -85px) scale(0.7);
+            }
+
+            100% {
+                transform: translate(-8px, -90px) scale(0.4);
+                z-index: 5;
+            }
+        }
+
+        @keyframes orbit-z-4 {
+            0% {
+                transform: translate(5px, -65px) scale(0.3);
+                z-index: 5;
+            }
+
+            25% {
+                transform: translate(8px, -70px) scale(0.5);
+            }
+
+            50% {
+                transform: translate(-5px, -65px) scale(0.9);
+                z-index: 15;
+            }
+
+            75% {
+                transform: translate(-8px, -60px) scale(0.6);
+            }
+
+            100% {
+                transform: translate(5px, -65px) scale(0.3);
+                z-index: 5;
+            }
+        }
+
+        /* Keyframe for new, realistic tail animation */
+        @keyframes tail-flow {
+
+            0%,
+            100% {
+                box-shadow: 20px 0 15px -4px var(--comet-color), 40px 0 30px -8px var(--comet-color), 60px 0 40px -15px rgba(255, 255, 255, 0.2);
+                transform: translate(0, -50%) rotate(0deg) skew(0deg);
+            }
+
+            50% {
+                box-shadow: 25px 5px 18px -3px var(--comet-color), 45px 2px 35px -6px var(--comet-color), 70px -5px 45px -12px rgba(255, 255, 255, 0.2);
+                transform: translate(0, -50%) rotate(2deg) skew(5deg);
+            }
+        }
+
+        /* Comet Orbit: The rotating container for each comet, now elliptical */
+        .comet-orbit {
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            pointer-events: none;
+            animation-play-state: paused;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        /* Assign elliptical paths and varied rotations with longer durations */
+        .c-orbit-1 {
+            width: 180px;
+            height: 140px;
+            animation-name: spin-clockwise;
+            animation-duration: 15s;
+        }
+
+        .c-orbit-2 {
+            width: 220px;
+            height: 160px;
+            transform: rotate(30deg);
+            animation-name: spin-counter-clockwise;
+            animation-duration: 18s;
+        }
+
+        .c-orbit-3 {
+            width: 200px;
+            height: 180px;
+            transform: rotate(-20deg);
+            animation-name: spin-clockwise;
+            animation-duration: 16s;
+        }
+
+        .c-orbit-4 {
+            width: 160px;
+            height: 130px;
+            transform: rotate(50deg);
+            animation-name: spin-counter-clockwise;
+            animation-duration: 20s;
+        }
+
+        /* Comet head: Glowing nucleus */
+        .comet {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            margin: auto;
+            opacity: 0;
+            border-radius: 50%;
+            transition: opacity 0.5s ease-out;
+            /* Glowing nucleus effect */
+            background: radial-gradient(circle, var(--comet-color) 30%, transparent 80%);
+            box-shadow: 0 0 7px var(--comet-color), 0 0 12px var(--comet-color);
+        }
+
+        /* NEW Comet tail: Created with layered box-shadows for a gaseous effect */
+        .comet::after {
+            content: '';
+            position: absolute;
+            left: 40%;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            background: transparent;
+            border-radius: 50%;
+            transform-origin: center left;
+            animation: tail-flow 3s ease-in-out infinite;
+            /* Layered shadows create a soft, glowing, multi-part tail */
+            box-shadow: 20px 0 15px -4px var(--comet-color), 40px 0 30px -8px var(--comet-color), 60px 0 40px -15px rgba(255, 255, 255, 0.2);
+        }
+
+        /* COMET HOVER EFFECT */
+        .btn:hover .comet-orbit {
+            animation-play-state: running;
+        }
+
+        .btn:hover .comet {
+            opacity: 1;
+            animation-iteration-count: infinite;
+        }
+
+        /* Each comet gets its own 3D depth animation with longer durations and delays */
+        .btn:hover .c-1 {
+            animation-name: orbit-z-1;
+            animation-duration: 15s;
+            animation-timing-function: linear;
+            animation-delay: -2s;
+        }
+
+        .btn:hover .c-2 {
+            animation-name: orbit-z-2;
+            animation-duration: 18s;
+            animation-timing-function: linear;
+            animation-delay: -5s;
+        }
+
+        .btn:hover .c-3 {
+            animation-name: orbit-z-3;
+            animation-duration: 16s;
+            animation-timing-function: linear;
+            animation-delay: -8s;
+        }
+
+        .btn:hover .c-4 {
+            animation-name: orbit-z-4;
+            animation-duration: 20s;
+            animation-timing-function: linear;
+            animation-delay: -12s;
+        }
+
+        /* Sync orbit container delays with comet delays for cohesive random start */
+        .btn:hover .c-orbit-1 {
+            animation-delay: -2s;
+        }
+
+        .btn:hover .c-orbit-2 {
+            animation-delay: -5s;
+        }
+
+        .btn:hover .c-orbit-3 {
+            animation-delay: -8s;
+        }
+
+        .btn:hover .c-orbit-4 {
+            animation-delay: -12s;
+        }
+
+
+        /* Comet Colors */
+        .btn-primary .comet {
+            --comet-color: #ffe0d1;
+        }
+
+        .btn-secondary .comet {
+            --comet-color: #a6faff;
+        }
+
+        /* Comet Sizes (head) */
+        .c-1 {
+            width: 20px;
+            height: 20px;
+        }
+
+        .c-2 {
+            width: 25px;
+            height: 25px;
+        }
+
+        .c-3 {
+            width: 15px;
+            height: 15px;
+        }
+
+        .c-4 {
+            width: 12px;
+            height: 12px;
+        }
+
+
+        /* General Card Styles */
+        .dashboard-card,
+        .stat-card,
+        .setting-card,
+        .template-card,
+        .training-controls,
+        .anomaly-card,
+        .detail-box {
+            background: linear-gradient(145deg,
+                    rgba(10, 42, 78, 0.5),
+                    rgba(2, 10, 26, 0.6));
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            backdrop-filter: blur(12px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .dashboard-card::before,
+        .stat-card::before,
+        .setting-card::before,
+        .template-card::before,
+        .training-controls::before,
+        .anomaly-card::before,
+        .detail-box::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 15px;
+            border: 1px solid transparent;
+            transition: border-color 0.3s ease-in-out;
+            pointer-events: none;
+        }
+
+        .dashboard-card:hover,
+        .stat-card:hover,
+        .setting-card:hover,
+        .template-card:hover,
+        .training-controls:hover,
+        .anomaly-card:hover,
+        .detail-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 229, 255, 0.1);
+        }
+
+        .dashboard-card:hover::before,
+        .stat-card:hover::before,
+        .setting-card:hover::before,
+        .template-card:hover::before,
+        .training-controls:hover::before,
+        .anomaly-card:hover::before,
+        .detail-box:hover::before {
+            border-color: var(--accent-cyan);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-orange);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .stat-card {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 1rem;
+        }
+
+        #world-map-container {
+            position: relative;
+            height: 350px;
+        }
+
+        #world-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .satellite-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-orange);
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .health-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .health-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-green {
+            background: #28a745;
+            box-shadow: 0 0 8px #28a745;
+        }
+
+        .status-yellow {
+            background: #ffc107;
+            box-shadow: 0 0 8px #ffc107;
+        }
+
+        /* Satellite Intel Page */
+        #satellite-intel-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+
+        #satellite-model-container {
+            height: 400px;
+            cursor: grab;
+        }
+
+        .satellite-selector {
+            width: 100%;
+            padding: 10px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .telemetry-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+
+        .telemetry-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .telemetry-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        /* Anomaly Detection Page */
+        #anomaly-log {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .anomaly-card {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .anomaly-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .severity-high {
+            color: #ff4d4d;
+        }
+
+        .severity-medium {
+            color: #ffc107;
+        }
+
+        .severity-low {
+            color: #00e5ff;
+        }
+
+        /* Data Analysis */
+        .data-upload {
+            border: 2px dashed var(--glass-border);
+            border-radius: 15px;
+            padding: 3rem;
+            text-align: center;
+            margin: 2rem 0;
+            cursor: pointer;
+        }
+
+        .data-upload:hover {
+            border-color: var(--accent-orange);
+            background: rgba(255, 124, 66, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        #stats-insights {
+            margin-top: 2rem;
+        }
+
+        /* Model Training */
+        .training-interface {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .training-controls {
+            padding: 2rem;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: var(--glass-bg);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent-orange);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: var(--accent-cyan);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: var(--glass-bg);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-orange), var(--accent-cyan));
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .neural-network {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 2rem;
+            border-radius: 15px;
+            margin: 2rem 0;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .nn-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .layer {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            z-index: 2;
+        }
+
+        .neuron {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-dark);
+            font-weight: 600;
+            box-shadow: 0 0 15px var(--accent-cyan);
+            animation: pulse 2s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { box-shadow: 0 0 10px var(--accent-cyan); }
+            to { box-shadow: 0 0 25px var(--accent-cyan), 0 0 10px var(--white); }
+        }
+
+        #model-history-table {
+            width: 100%;
+            text-align: left;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        #model-history-table th,
+        #model-history-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        /* Reports */
+        .report-templates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .template-card {
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .template-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 229, 255, 0.2);
+        }
+
+        .template-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--accent-orange);
+        }
+
+        /* Settings */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .setting-card {
+            padding: 2rem;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            float: right;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--glass-bg);
+            border-radius: 34px;
+            transition: 0.4s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.4s;
+        }
+
+        .toggle input:checked+.toggle-slider {
+            background-color: var(--accent-orange);
+        }
+
+        .toggle input:checked+.toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, var(--accent-orange), var(--accent-cyan));
+            color: var(--primary-dark);
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            z-index: 1001;
+            opacity: 0;
+            transform: translate(-50%, 20px);
+            transition: all 0.5s ease-in-out;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        /* Footer */
+        footer {
+            padding: 2rem;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 4rem;
+            background: rgba(2, 10, 26, 0.5);
+        }
+
+        @media (max-width: 992px) {
+            .nav-links {
+                display: none;
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                background: var(--primary-dark);
+                width: 100%;
+                padding: 1rem;
+                border-top: 1px solid var(--glass-border);
+             }
+             .nav-links.active {
+                 display: flex;
+             }
+             .mobile-menu {
+                 display: flex;
+                 flex-direction: column;
+             }
+        }
+        @media (max-width: 768px) {
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1.2rem;
+            }
+
+            .dashboard,
+            .training-interface,
+            .settings-grid,
+            #satellite-intel-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+                gap: 1.5rem;
+                align-items: center;
+            }
+            .btn-primary {
+                margin-right: 0;
+            }
+        }
+
+
+        .cta-buttons a{
+            margin-left: 50px;
+            font-size: 25px;
+            color: white;
+            font-weight: 900px;
+        }
+
+        #Satellites a{
+            margin-left: 30px;
+            color: rgb(119, 106, 223);
+            /* color: transparent; */
+            /* background: linear-gradient(#BF7746,#0B73B2); */
+            /* background-clip: text; */
+            /* text-decoration: underline; */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+    <div class="circle"></div>
+
+    <canvas id="bg-canvas"></canvas>
+    <canvas id="warp-canvas"></canvas>
+
+    <!-- nav bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="./images/isro.jpg" alt="ISRO Logo"
+                onerror="this.onerror=null; this.src='https://placehold.co/40x40/020a1a/ffffff?text=ISRO'">
+                <span>GNSS AI SYSTEM</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item active" data-page="landing">Home</li>
+                <li class="nav-item" data-page="dashboard">Dashboard</li>
+                <li class="nav-item" data-page="satellite-intel">Satellite Intel</li>
+                <li class="nav-item" data-page="anomalies">Anomalies</li>
+                <li class="nav-item" data-page="analysis">Data Analysis</li>
+                <li class="nav-item" data-page="training">Model Training</li>
+                <li class="nav-item" data-page="reports">Reports</li>
+                <li class="nav-item" ><a href="./login.html" style="color: #fff; text-decoration: none; font-weight: 600px;">login</a></li>
+                <li class="nav-item user-menu">
+                    <button id="userMenuBtn" class="hamburger-menu-btn">
+                        <div class="hamburger"></div>
+                        <div class="hamburger"></div>
+                        <div class="hamburger"></div>
+                    </button>
+                    <div id="userDropdown" class="user-dropdown">
+                        <a href="login.html" id="loginLink">Login</a>
+                        <a href="signup.html" id="signupLink">Signup</a>
+                        <a href="#" id="settingsLink">Settings</a>
+                    </div>
+                </li>
+            </ul>
+            <div class="mobile-menu">
+                <div class="hamburger"></div>
+                <div class="hamburger"></div>
+                <div class="hamburger"></div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- landing page -->
+    <section id="landing" class="page-section active">
+        <!-- hero -->
+        <div class="hero">
+            <div class="hero-content">
+                <h1 class="wavy-text">Precision Navigation, Perfected by AI</h1>
+                <p class="wavy-text">ISRO's advanced machine learning platform for real-time GNSS error prediction and correction, ensuring unparalleled accuracy for India's satellite navigation.</p>
+                <div class="cta-buttons">
+                    <button class="btn btn-primary" onclick="launchWarp('dashboard')">
+                        <span class="btn_text">Launch Dashboard</span>
+                        <div class="comet-orbit c-orbit-1">
+                            <div class="comet c-1"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-2">
+                            <div class="comet c-2"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-3">
+                            <div class="comet c-3"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-4">
+                            <div class="comet c-4"></div>
+                        </div>
+                    </button>
+                    <button class="btn btn-secondary" onclick="navigateToPage('training')">
+                        <span class="btn_text">Model Training</span>
+                        <div class="comet-orbit c-orbit-1">
+                            <div class="comet c-1"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-2">
+                            <div class="comet c-2"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-3">
+                            <div class="comet c-3"></div>
+                        </div>
+                        <div class="comet-orbit c-orbit-4">
+                            <div class="comet c-4"></div>
+                        </div>
+                    </button>
+
+           
+                    <a href="https://colab.research.google.com/drive/1dcKbOL44IeWGI8SWo_8DV0SJkXiCg908?usp=sharing" title="Due To paid hosting, we added colab link." >Model colab link</a>
+                </div>
+            </div>
+        </div>
+        <!-- container -->
+
+        <div class="container">
+            <div class="stats">
+                <div class="stat-card"> <span class="stat-number" data-target="80 ~">0</span>
+                    <div class="stat-label">Prediction Accuracy (%)</div>
+                </div>
+                <div class="stat-card"> <span class="stat-number" data-target="15">0</span>
+                    <div class="stat-label">GEO Satellites Monitored</div>
+                </div>
+                <div class="stat-card"> <span class="stat-number" data-target="32">0</span>
+                    <div class="stat-label">MEO Satellites Monitored</div>
+                </div>
+                <div class="stat-card"> <span id="realtime-clock" class="stat-number"></span>
+                    <div class="stat-label">System Time (IST)</div>
+                </div>
+            </div>
+            <div class="detail-box" style="margin-top: 4rem;">
+                <h2 class="card-title">System Capabilities</h2>
+                <div class="dashboard" style="margin-top: 1rem;">
+                    <div>
+                        <h3>Real-Time Correction</h3>
+                        <p>Continuously broadcasts precise error corrections to improve positional accuracy across the Indian subcontinent.</p>
+                    </div>
+
+                    <div>
+                        <h3>Predictive Analysis</h3>
+                        <p>Leverages deep learning to forecast ionospheric disturbances and satellite clock drift hours in advance.</p>
+                    </div>
+                    <div>
+                        <h3>Autonomous Anomaly Detection</h3>
+                        <p>AI models automatically flag unusual satellite behavior, ensuring constellation health and reliability.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- dashboard -->
+    <section id="dashboard" class="page-section">
+        <div class="container">
+            <h2>Real-time GNSS Monitoring Dashboard</h2>
+            <div class="dashboard">
+                <div class="dashboard-card">
+                    <h3 class="card-title">Live Error Predictions (Meters)</h3>
+                    <div class="chart-container"> <canvas id="errorChart"></canvas> </div>
+                </div>
+                <div class="dashboard-card" style="grid-column: span 2;">
+                    <h3 class="card-title">Global Satellite Constellation View</h3>
+                    <div id="world-map-container">
+                        <svg id="world-map" viewBox="0 0 1000 500">
+                           <path d="M500,250 m-250,0 a250,250 0 1,0 500,0 a250,250 0 1,0 -500,0" fill="#0a2a4e" stroke="var(--accent-cyan)" stroke-width="0.5"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">Satellite Constellation Status</h3>
+                    <div class="chart-container"> <canvas id="constellationChart"></canvas> </div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">Model Performance Metrics</h3>
+                    <p>RMSE: <span id="rmse-val">0.245</span>m | MAE: <span id="mae-val">0.189</span>m | R²: <span id="r2-val">0.924</span></p>
+                    <div class="progress-bar" style="margin-top: 1rem;">
+                        <div id="model-perf-fill" class="progress-fill" style="width: 92.4%"></div>
+                    </div>
+                    <p>Current Model Accuracy: <strong id="model-acc-val">99.82%</strong></p>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">System Health & Alerts</h3>
+                    <div class="health-grid">
+                        <div class="health-item">
+                            <div class="health-status status-green"></div>Data Pipeline
+                        </div>
+                        <div class="health-item">
+                            <div class="health-status status-green"></div>Prediction Service
+                        </div>
+                        <div class="health-item">
+                            <div class="health-status status-green"></div>API Endpoint
+                        </div>
+                        <div class="health-item">
+                            <div class="health-status status-yellow"></div>Storage (85%)
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">Continuous Learning Status</h3>
+                    <div id="learningStatus" style="font-size: 1.1rem; display:flex; align-items:center; gap: 1rem;">
+                        <span id="learningStatusText">Ingesting new satellite data...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- satellite intel -->
+    <section id="satellite-intel" class="page-section">
+        <div class="container">
+            <h2>Satellite Deep Dive & Telemetry</h2>
+            <div id="satellite-intel-grid">
+                <div class="dashboard-card">
+                    <h3 class="card-title">Select Satellite</h3>
+                    <select id="satellite-selector" class="satellite-selector">
+                        <option value="IRNSS-1G">IRNSS-1G (GEO)</option>
+                        <option value="IRNSS-1A">IRNSS-1A (MEO)</option>
+                        <option value="IRNSS-1B">IRNSS-1B (MEO)</option>
+                    </select>
+                    <h3 class="card-title">Live 3D Telemetry</h3>
+                    <div id="satellite-model-container"></div>
+                    <div class="telemetry-grid">
+                        <div class="telemetry-item">
+                            <div class="telemetry-label">Signal Strength</div>
+                            <div id="telemetry-signal" class="telemetry-value">-85 dBm</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-label">Internal Temp</div>
+                            <div id="telemetry-temp" class="telemetry-value">22.5 °C</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-label">Uptime</div>
+                            <div id="telemetry-uptime" class="telemetry-value">1,342 Days</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-label">Battery Level</div>
+                            <div id="telemetry-battery" class="telemetry-value">98.7%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">Error Vector Analysis for <span id="selected-satellite-name">IRNSS-1G</span></h3>
+                    <div class="chart-container" style="height: 550px;"><canvas id="satelliteErrorChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- anomalies -->
+    <section id="anomalies" class="page-section">
+        <div class="container">
+            <h2>AI-Powered Anomaly Detection</h2>
+            <div class="dashboard">
+                <div class="dashboard-card" style="grid-column: 1 / -1;">
+                    <h3 class="card-title">Anomaly Frequency Over Last 72 Hours</h3>
+                    <div class="chart-container" style="height: 250px;"><canvas id="anomaly-timeline-chart"></canvas></div>
+                </div>
+                <div class="dashboard-card" style="grid-column: 1 / -1;">
+                    <h3 class="card-title">Live Anomaly Log</h3>
+                    <div id="anomaly-log">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="analysis" class="page-section">
+        <div class="container">
+            <h2>Data Analysis & Visualization</h2>
+            <div class="data-upload" onclick="document.getElementById('file-input').click()">
+                <input type="file" id="file-input" accept=".csv">
+                <div class="upload-icon">📤</div>
+                <h3>Upload & Process GNSS Data</h3>
+                <p>Drag and drop or click to browse for CSV files. The system will automatically analyze and visualize the error data.</p>
+            </div>
+            <div class="dashboard">
+                <div class="dashboard-card">
+                    <h3 class="card-title">GEO Satellite Error Distribution</h3>
+                    <div class="chart-container"><canvas id="geoErrorChart"></canvas></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3 class="card-title">MEO Satellite Time Series</h3>
+                    <div class="chart-container"><canvas id="meoTimeChart"></canvas></div>
+                </div>
+            </div>
+            <div id="stats-insights" class="detail-box">
+                <h3 class="card-title">Key Statistical Insights</h3>
+                <p>No file uploaded. Please upload a CSV to generate insights.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- model training -->
+
+    <section id="training" class="page-section">
+        <div class="container">
+            <h2 id="Satellites">Continuous Learning & Model Hub : click here for Output of model (8th Day) <a href="https://docs.google.com/spreadsheets/d/1XxKZQ7lXJFGPfOfYFyPlNDMJZBWfK_QSMXitaYSNvVU/edit?usp=sharing">MEO 2</a>
+            <a href="https://docs.google.com/spreadsheets/d/1VPcQfBpc4XRTpo3WfOGy-5hxeRv4G3tkdmUaSKZzp-k/edit?usp=sharing">GEO</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rZYona4JccsQvg-8mgXeITKGUAluFk5ER_JwicCcBUA/edit?usp=sharing">MEO-1</a></h2>
+            <div class="neural-network">
+ 
+                <canvas class="nn-canvas"></canvas>
+                <div class="layer">
+                    <div class="neuron">X</div>
+                    <div class="neuron">Y</div>
+                    <div class="neuron">Z</div>
+                    <div class="neuron">T</div>
+                </div>
+                <div class="layer">
+                    <div class="neuron">H1</div>
+                    <div class="neuron">H2</div>
+                    <div class="neuron">H3</div>
+                    <div class="neuron">H4</div>
+                    <div class="neuron">H5</div>
+                </div>
+                <div class="layer">
+                    <div class="neuron">H6</div>
+                    <div class="neuron">H7</div>
+                    <div class="neuron">H8</div>
+                    <div class="neuron">H9</div>
+                    <div class="neuron">H10</div>
+                </div>
+                <div class="layer">
+                    <div class="neuron">Δ</div>
+                </div>
+            </div>
+
+            <div class="training-interface">
+                <div class="training-controls">
+                    <h3 class="card-title">Real-Time Training Configuration</h3>
+                    <div class="control-group">
+                        <label class="control-label">Learning Rate: <span id="learningRateValue">0.001</span></label>
+                        <input type="range" class="slider" min="0.0001" max="0.01" step="0.0001" value="0.001" id="learningRate">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Batch Size: <span id="batchSizeValue">32</span></label>
+                        <input type="range" class="slider" min="16" max="128" step="16" value="32" id="batchSize">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Model Architecture:</label>
+                        <select class="form-control" id="modelArch" style="width:100%; padding:10px; background:var(--glass-bg); border:1px solid var(--glass-border); color:white; border-radius:8px;">
+                            <option value="transformer">Vision Transformer (22M params)</option>
+                            <option value="mamba">Mamba State Space (16M params)</option>
+                            <option value="moe">Mixture of Experts (45M params)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" style="width:100%" onclick="startTraining()">Initiate Learning Cycle</button>
+                </div>
+
+                <div class="dashboard-card">
+                    <h3 class="card-title">Training Progress</h3>
+                    <div class="chart-container"><canvas id="trainingChart"></canvas></div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="trainingProgress" style="width: 0%"></div>
+                    </div>
+                    <p id="trainingStats">Epoch: 0/∞ | Loss: N/A | Val. Accuracy: N/A</p>
+                </div>
+            </div>
+            <div class="detail-box" style="margin-top: 2rem;">
+                <h3 class="card-title">Model Version History</h3>
+                <table id="model-history-table">
+                    <thead>
+                        <tr>
+                            <th>Version ID</th>
+                            <th>Accuracy</th>
+                            <th>Date Deployed</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>v3.1.4-alpha</td>
+                            <td>99.82%</td>
+                            <td>2025-10-11</td>
+                            <td style="color: var(--accent-cyan)">Active</td>
+                        </tr>
+                        <tr>
+                            <td>v3.1.3-alpha</td>
+                            <td>99.79%</td>
+                            <td>2025-10-08</td>
+                            <td>Archived</td>
+                        </tr>
+                        <tr>
+                            <td>v3.1.2-alpha</td>
+                            <td>99.78%</td>
+                            <td>2025-10-05</td>
+                            <td>Archived</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- reports -->
+    <section id="reports" class="page-section">
+        <div class="container">
+            <h2>Analysis Reports & Documentation</h2>
+            <div class="report-templates">
+                <div class="template-card" onclick="generateReport('Performance')">
+                    <div class="template-icon">📈</div>
+                    <h3>Performance Analysis</h3>
+                    <p>Comprehensive model performance metrics and predictions.</p>
+                </div>
+                <div class="template-card" onclick="generateReport('Satellite')">
+                    <div class="template-icon">🛰</div>
+                    <h3>Satellite Status Report</h3>
+                    <p>Individual satellite error analysis and health monitoring.</p>
+                </div>
+                <div class="template-card" onclick="generateReport('Training')">
+                    <div class="template-icon">🧠</div>
+                    <h3>Training Cycle Report</h3>
+                    <p>Model training history and continuous learning progress.</p>
+                </div>
+                <div class="template-card" onclick="generateReport('Custom')">
+                    <div class="template-icon">⚙</div>
+                    <h3>Custom Report</h3>
+                    <p>Build your own report with selected metrics and timeframes.</p>
+                </div>
+            </div>
+
+            <div class="dashboard-card" style="margin-top: 2rem;">
+                <h3 class="card-title">Generated Reports</h3>
+                <div id="reportsList">
+                    <p>📄 Performance_Report_2025-10-11.pdf - <span style="color: var(--accent-cyan);">Ready</span></p>
+                    <p>📄 Satellite_Report_2025-10-10.pdf - <span style="color: var(--accent-cyan);">Ready</span></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="settings" class="page-section">
+        <div class="container">
+            <h2>System Configuration & Settings</h2>
+            <div class="settings-grid">
+                <div class="setting-card">
+                    <h3 class="card-title">Model Settings</h3>
+                    <div class="control-group"> <label class="control-label">Continuous Auto-Training <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">Real-time Dashboard Updates <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">Prediction Horizon:</label> <select class="form-control" style="width:100%; padding:10px; background:var(--glass-bg); border:1px solid var(--glass-border); color:white; border-radius:8px;">
+                            <option>1 hour</option>
+                            <option>2 hours</option>
+                            <option>24 hours</option>
+                        </select> </div>
+                </div>
+
+                <div class="setting-card">
+                    <h3 class="card-title">Data Sources</h3>
+                    <div class="control-group"> <label class="control-label">GEO Satellite Feed <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">MEO Satellite Feed <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">Data Refresh Rate: <span id="refreshRateValue">5</span>s</label> <input type="range" class="slider" min="1" max="60" value="5" id="refreshRate"> </div>
+                </div>
+
+                <div class="setting-card">
+                    <h3 class="card-title">Performance Tuning</h3>
+                    <div class="control-group"> <label class="control-label">GPU Acceleration <label class="toggle"><input type="checkbox" checked><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">Memory Optimization <label class="toggle"><input type="checkbox"><span class="toggle-slider"></span></label></label></div>
+                    <div class="control-group"> <label class="control-label">Thread Count: <span id="threadCountValue">8</span></label> <input type="range" class="slider" min="1" max="16" value="8" id="threadCount"> </div>
+                </div>
+                <div class="setting-card">
+                    <h3 class="card-title">Alerting Thresholds</h3>
+                    <div class="control-group"> <label class="control-label">Clock Drift Alert (ns): <span id="alertClockValue">5</span></label> <input type="range" class="slider" min="1" max="20" value="5" id="alertClock"> </div>
+                    <div class="control-group"> <label class="control-label">Ephemeris Alert (m): <span id="alertEphemerisValue">2</span></label> <input type="range" class="slider" min="0.5" max="10" step="0.5" value="2" id="alertEphemeris"> </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Indian Space Research Organisation (ISRO). All rights reserved.</p>
+    </footer>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        const coords = { x: 0, y: 0 };
+        const circles = document.querySelectorAll(".circle");
+
+        const colors = [
+            "#979ee9ff", "#d8d4d0ff", "#beb6b6ff", "#a19c99ff", "#96918dff",
+            "#807c7aff", "#595655ff", "#464342ff", "#2c2b2aff", "#0e0d0dff",
+            "#979ee9ff", "#d8d4d0ff", "#beb6b6ff", "#a19c99ff", "#96918dff",
+            "#807c7aff", "#595655ff", "#464342ff", "#2c2b2aff", "#0e0d0dff",
+        ];
+
+        circles.forEach(function (circle, index) {
+            circle.x = 0;
+            circle.y = 0;
+            circle.style.backgroundColor = colors[index % colors.length];
+        });
+
+        window.addEventListener("mousemove", function (e) {
+            coords.x = e.clientX;
+            coords.y = e.clientY;
+        });
+
+        function animateCircles() {
+            let x = coords.x;
+            let y = coords.y;
+
+            circles.forEach(function (circle, index) {
+                circle.style.left = x - 12 + "px";
+                circle.style.top = y - 12 + "px";
+                circle.style.scale = (circles.length - index) / circles.length;
+                circle.x = x;
+                circle.y = y;
+
+                const nextCircle = circles[index + 1] || circles[0];
+                x += (nextCircle.x - x) * 0.3;
+                y += (nextCircle.y - y) * 0.3;
+            });
+
+            requestAnimationFrame(animateCircles);
+        }
+        animateCircles();
+
+
+        // --- GSAP & GLOBAL SETUP ---
+        gsap.registerPlugin(ScrollTrigger);
+        let currentPage = 'landing';
+        let charts = {};
+        let trainingInterval;
+        let particleInterval = null;
+        let satelliteScene = null;
+        let mouse = { x: 0, y: 0 };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeStarfield();
+            initializeNavigation();
+            initializeAnimations();
+            initializeSliders();
+            initializeRealtimeClock();
+            initializeFileUpload();
+            navigateToPage('landing', true);
+
+            document.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            });
+        });
+
+        // --- 3D & ANIMATIONS ---
+        function initializeStarfield() {
+            const canvas = document.getElementById('bg-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.z = 1;
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            const starGeo = new THREE.BufferGeometry();
+            const starVertices = [];
+            for (let i = 0; i < 6000; i++) {
+                const x = (Math.random() - 0.5) * 2000;
+                const y = (Math.random() - 0.5) * 2000;
+                const z = (Math.random() - 0.5) * 2000;
+                starVertices.push(x, y, z);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+            const stars = new THREE.Points(starGeo, starMaterial);
+            scene.add(stars);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                stars.rotation.y += 0.0001;
+                camera.position.x += (mouse.x * 0.5 - camera.position.x) * 0.02;
+                camera.position.y += (mouse.y * 0.5 - camera.position.y) * 0.02;
+                camera.lookAt(scene.position);
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function launchWarp(page) {
+            const canvas = document.getElementById('warp-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const stars = Array.from({ length: 500 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                z: Math.random() * canvas.width,
+                pz: Math.random() * canvas.width
+            }));
+
+            const speed = 10;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            gsap.to(canvas, { opacity: 1, duration: 0.2 });
+
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    gsap.to(canvas, { opacity: 0, duration: 0.5 });
+                    navigateToPage(page);
+                }
+            });
+
+            tl.to({}, {
+                duration: 1.5, onUpdate: function () {
+                    ctx.fillStyle = `rgba(2, 10, 26, 0.1)`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = 'white';
+
+                    stars.forEach(star => {
+                        star.z -= speed * (this.progress() * 5 + 1);
+                        if (star.z < 1) {
+                            star.z = canvas.width;
+                            star.x = Math.random() * canvas.width;
+                            star.y = Math.random() * canvas.height;
+                            star.pz = star.z;
+                        }
+
+                        const sx = (star.x - centerX) * (canvas.width / star.z) + centerX;
+                        const sy = (star.y - centerY) * (canvas.width / star.z) + centerY;
+                        const psx = (star.x - centerX) * (canvas.width / star.pz) + centerX;
+                        const psy = (star.y - centerY) * (canvas.width / star.pz) + centerY;
+
+                        ctx.beginPath();
+                        ctx.moveTo(psx, psy);
+                        ctx.lineTo(sx, sy);
+                        ctx.strokeStyle = `rgba(255,255,255,${1 - star.z / canvas.width})`;
+                        ctx.stroke();
+
+                        star.pz = star.z;
+                    });
+                }
+            });
+        }
+
+
+        function initializeAnimations() {
+            document.querySelectorAll('.wavy-text').forEach(el => {
+                el.innerHTML = el.textContent.replace(/\S/g, "<span>$&</span>");
+                gsap.from(el.querySelectorAll('span'), {
+                    scrollTrigger: { trigger: el, start: "top 90%", end: "bottom 50%", scrub: 1 },
+                    opacity: 0.1,
+                    y: 50,
+                    rotateX: -90,
+                    stagger: 0.05
+                });
+            });
+        }
+
+        // --- NAVIGATION ---
+        function initializeNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if(item.dataset.page){
+                    item.addEventListener('click', () => {
+                        navigateToPage(item.dataset.page);
+                            if(window.innerWidth <= 992) {
+                                document.querySelector('.nav-links').classList.remove('active');
+                            }
+                    });
+                }
+            });
+
+            document.querySelector('.mobile-menu').addEventListener('click', () => {
+                document.querySelector('.nav-links').classList.toggle('active');
+            });
+
+            // User Dropdown Menu Logic
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            const userDropdown = document.getElementById('userDropdown');
+
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('show');
+                });
+
+                document.getElementById('settingsLink').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    navigateToPage('settings');
+                    userDropdown.classList.remove('show');
+                     if(window.innerWidth <= 992) { // also hide main nav if open
+                        document.querySelector('.nav-links').classList.remove('active');
+                    }
+                });
+            }
+             // Close dropdown if clicked outside
+            window.addEventListener('click', (event) => {
+                if (userDropdown && userDropdown.classList.contains('show')) {
+                    if (!userMenuBtn.contains(event.target)) {
+                         userDropdown.classList.remove('show');
+                    }
+                }
+            });
+        }
+
+        function navigateToPage(page, isInitial = false) {
+            if (currentPage === 'training' && particleInterval) { clearInterval(particleInterval); particleInterval = null; }
+            if (currentPage === 'satellite-intel' && satelliteScene) { satelliteScene.stop(); satelliteScene = null; }
+
+            const activePage = document.querySelector('.page-section.active');
+            if (activePage && !isInitial) {
+                gsap.to(activePage, { opacity: 0, duration: 0.4, onComplete: () => { activePage.classList.remove('active'); setupNewPage(page); } });
+            } else {
+                if (activePage) activePage.classList.remove('active');
+                setupNewPage(page);
+            }
+        }
+
+        function setupNewPage(page) {
+            document.getElementById(page).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const activeNavItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.add('active');
+            }
+            currentPage = page;
+
+            gsap.fromTo(`#${page}`, { opacity: 0 }, { opacity: 1, duration: 0.5 });
+            gsap.from(`#${page} .container > *`, { duration: 0.8, y: 50, opacity: 0, stagger: 0.1, ease: "power3.out" });
+
+            if (page === 'landing') animateCounters();
+            if (page === 'dashboard') initializeDashboard();
+            if (page === 'satellite-intel') initializeSatelliteIntel();
+            if (page === 'anomalies') initializeAnomalies();
+            if (page === 'analysis') initializeAnalysis();
+            if (page === 'training') initializeTraining();
+        }
+
+        // --- PAGE-SPECIFIC INITIALIZERS ---
+        function initializeDashboard() {
+            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ffffff', font: { size: 14 } } } }, scales: { x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } } } };
+
+            function createGradient(ctx, color1, color2) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, color1);
+                gradient.addColorStop(1, color2);
+                return gradient;
+            }
+
+            if (charts.error) charts.error.destroy();
+            const errorCtx = document.getElementById('errorChart').getContext('2d');
+            charts.error = new Chart(errorCtx, { type: 'line', data: { labels: generateTimeLabels(20), datasets: [{ label: 'Predicted X Error (m)', data: generateRandomData(20, 0.5, 0.2), borderColor: '#ff7c42', tension: 0.4, fill: true, backgroundColor: createGradient(errorCtx, 'rgba(255, 124, 66, 0.4)', 'rgba(255, 124, 66, 0)') }, { label: 'Predicted Y Error (m)', data: generateRandomData(20, -0.3, 0.2), borderColor: '#00e5ff', tension: 0.4, fill: true, backgroundColor: createGradient(errorCtx, 'rgba(0, 229, 255, 0.4)', 'rgba(0, 229, 255, 0)') }] }, options: chartOptions });
+            
+            if (charts.constellation) charts.constellation.destroy();
+            charts.constellation = new Chart(document.getElementById('constellationChart'), { type: 'doughnut', data: { labels: ['Healthy', 'Warning', 'Critical'], datasets: [{ data: [118, 15, 4], backgroundColor: ['#28a745', '#ffc107', '#dc3545'], borderWidth: 0 }] }, options: { ...chartOptions, scales: {} } });
+            
+            const statuses = ["Analyzing ionospheric interference...", "Updating orbital parameters...", "Recalibrating atomic clocks...", "Ingesting new satellite data..."];
+            let statusIndex = 0;
+            setInterval(() => { statusIndex = (statusIndex + 1) % statuses.length; gsap.to("#learningStatusText", { opacity: 0, duration: 0.5, onComplete: () => { document.getElementById("learningStatusText").innerText = statuses[statusIndex]; gsap.to("#learningStatusText", { opacity: 1, duration: 0.5 }); } }); }, 5000);
+            initializeMap();
+        }
+
+        function initializeSatelliteIntel() {
+            if (!satelliteScene) satelliteScene = createSatellite3D('satellite-model-container');
+
+            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ffffff' } } }, scales: { x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } } } };
+            if (charts.satelliteError) charts.satelliteError.destroy();
+            charts.satelliteError = new Chart(document.getElementById('satelliteErrorChart'), { type: 'line', data: { labels: generateTimeLabels(50), datasets: [{ label: 'X Error', data: [], borderColor: '#ff7c42', tension: 0.4 }, { label: 'Y Error', data: [], borderColor: '#00e5ff', tension: 0.4 }, { label: 'Clock Drift', data: [], borderColor: '#ffc107', tension: 0.4 }] }, options: chartOptions });
+
+            const selector = document.getElementById('satellite-selector');
+            const updateSatelliteData = () => {
+                document.getElementById('selected-satellite-name').textContent = selector.value;
+                charts.satelliteError.data.datasets[0].data = generateRandomData(50, (Math.random() - 0.5) * 2, 1);
+                charts.satelliteError.data.datasets[1].data = generateRandomData(50, (Math.random() - 0.5) * 2, 1);
+                charts.satelliteError.data.datasets[2].data = generateRandomData(50, (Math.random() - 0.5) * 0.1, 0.2);
+                charts.satelliteError.update();
+
+                gsap.to("#telemetry-signal", { innerText: -85 + Math.random() * 5, duration: 0.5, snap: { innerText: 0.1 }, onUpdate: function () { this.targets()[0].innerText = `${parseFloat(this.targets()[0].innerText).toFixed(1)} dBm` } });
+                gsap.to("#telemetry-temp", { innerText: 22.5 + Math.random() * 2 - 1, duration: 0.5, snap: { innerText: 0.1 }, onUpdate: function () { this.targets()[0].innerText = `${parseFloat(this.targets()[0].innerText).toFixed(1)} °C` } });
+            };
+            selector.addEventListener('change', updateSatelliteData);
+            updateSatelliteData();
+        }
+
+        function initializeAnomalies() {
+            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, beginAtZero: true } } };
+            if(charts.anomalies) charts.anomalies.destroy();
+            charts.anomalies = new Chart(document.getElementById('anomaly-timeline-chart'), { type: 'bar', data: { labels: Array.from({ length: 24 }, (_, i) => `${i * 3}h ago`), datasets: [{ label: 'Anomalies', data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 5)), backgroundColor: '#ff7c42' }] }, options: chartOptions });
+
+            const logContainer = document.getElementById('anomaly-log');
+            logContainer.innerHTML = ''; 
+            const addAnomaly = (isInitial = false) => {
+                const severities = ['High', 'Medium', 'Low'];
+                const types = ['Ionospheric Scintillation', 'Clock Drift Exceeded Threshold', 'Unexpected Ephemeris Deviation', 'Multipath Interference Detected'];
+                const severity = severities[Math.floor(Math.random() * 3)];
+                const anomaly = { time: new Date().toLocaleTimeString(), satellite: `IRNSS-1${String.fromCharCode(65 + Math.floor(Math.random() * 9))}`, severity: severity, type: types[Math.floor(Math.random() * 4)] };
+                const anomalyEl = document.createElement('div');
+                anomalyEl.className = 'anomaly-card';
+                anomalyEl.innerHTML = `<div class="anomaly-header"><span>${anomaly.time} - ${anomaly.satellite}</span><span class="severity-${severity.toLowerCase()}">${anomaly.severity.toUpperCase()}</span></div><p>${anomaly.type}</p>`;
+                logContainer.prepend(anomalyEl);
+                if (!isInitial) gsap.from(anomalyEl, { opacity: 0, y: -20, duration: 0.5 });
+                if (logContainer.children.length > 10) logContainer.lastChild.remove();
+            };
+            for (let i = 0; i < 5; i++) addAnomaly(true);
+            setInterval(addAnomaly, 8000);
+        }
+
+        function initializeAnalysis() {
+            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ffffff' } } }, scales: { x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } } } };
+            if(charts.geoError) charts.geoError.destroy();
+            charts.geoError = new Chart(document.getElementById('geoErrorChart'), { type: 'bar', data: { labels: ['X Error', 'Y Error', 'Z Error', 'Clock Error'], datasets: [{ label: 'Standard Deviation (m)', data: [5.04, 8.70, 6.58, 3.80], backgroundColor: ['#ff7c42', '#00e5ff', '#28a745', '#ffc107'] }] }, options: chartOptions });
+            if(charts.meoTime) charts.meoTime.destroy();
+            charts.meoTime = new Chart(document.getElementById('meoTimeChart'), { type: 'line', data: { labels: generateTimeLabels(48), datasets: [{ label: 'MEO-1 X Error', data: generateRandomData(48, -0.58, 0.32), borderColor: '#ff7c42', tension: 0.4 }, { label: 'MEO-2 X Error', data: generateRandomData(48, -0.13, 0.17), borderColor: '#00e5ff', tension: 0.4 }] }, options: chartOptions });
+        }
+
+        function initializeTraining() {
+            const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#ffffff' } } }, scales: { x: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, title: { display: true, text: 'Epoch', color: '#fff' } }, y: { ticks: { color: '#ffffff' }, grid: { color: 'rgba(255, 255, 255, 0.1)' }, title: { display: true, text: 'Loss', color: '#fff' } } } };
+            if(charts.training) charts.training.destroy();
+            charts.training = new Chart(document.getElementById('trainingChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Training Loss', data: [], borderColor: '#ff7c42', tension: 0.4 }, { label: 'Validation Loss', data: [], borderColor: '#00e5ff', tension: 0.4 }] }, options: chartOptions });
+            // The animation will now start on button click.
+        }
+
+        function startTraining() {
+            if (trainingInterval) clearInterval(trainingInterval);
+            animateNeuralNetwork(); // Start the animation on click
+            showNotification('New continuous learning cycle initiated!');
+            let currentEpoch = 0;
+            charts.training.data.labels = [];
+            charts.training.data.datasets[0].data = [];
+            charts.training.data.datasets[1].data = [];
+            charts.training.update();
+
+            trainingInterval = setInterval(() => {
+                currentEpoch++;
+                const progress = (currentEpoch % 100);
+                const trainLoss = 0.8 * Math.exp(-currentEpoch / 30) + (Math.random() * 0.1);
+                const valLoss = trainLoss + (Math.random() * 0.05);
+                document.getElementById('trainingProgress').style.width = progress + '%';
+                document.getElementById('trainingStats').innerHTML = `Epoch: ${currentEpoch} | Loss: ${trainLoss.toFixed(4)} | Val. Accuracy: ${((1 - valLoss) * 100).toFixed(2)}%`;
+                charts.training.data.labels.push(currentEpoch);
+                charts.training.data.datasets[0].data.push(trainLoss);
+                charts.training.data.datasets[1].data.push(valLoss);
+                if (charts.training.data.labels.length > 100) { charts.training.data.labels.shift(); charts.training.data.datasets.forEach(d => d.data.shift()); }
+                charts.training.update('none');
+            }, 200);
+        }
+
+        function animateNeuralNetwork() {
+            const canvas = document.querySelector('.nn-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const networkEl = document.querySelector('.neural-network');
+            let neuronPositions = [];
+
+            function updateNeuronPositions() {
+                neuronPositions = [];
+                const layers = networkEl.querySelectorAll('.layer');
+                layers.forEach(layer => {
+                    const layerPositions = [];
+                    layer.querySelectorAll('.neuron').forEach(neuron => {
+                        layerPositions.push({
+                            x: neuron.offsetLeft + neuron.offsetWidth / 2,
+                            y: neuron.offsetTop + neuron.offsetHeight / 2
+                        });
+                    });
+                    neuronPositions.push(layerPositions);
+                });
+            }
+
+            function resizeCanvas() {
+                canvas.width = networkEl.offsetWidth;
+                canvas.height = networkEl.offsetHeight;
+                updateNeuronPositions();
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            const particles = [];
+
+            function emitParticle() {
+                if (particles.length > 150 || neuronPositions.length < 2) return;
+
+                const layerIndex = Math.floor(Math.random() * (neuronPositions.length - 1));
+                const startLayer = neuronPositions[layerIndex];
+                const endLayer = neuronPositions[layerIndex + 1];
+
+                if (startLayer.length === 0 || endLayer.length === 0) return;
+
+                const startNeuron = startLayer[Math.floor(Math.random() * startLayer.length)];
+                const endNeuron = endLayer[Math.floor(Math.random() * endLayer.length)];
+
+                particles.push({
+                    startX: startNeuron.x,
+                    startY: startNeuron.y,
+                    endX: endNeuron.x,
+                    endY: endNeuron.y,
+                    progress: 0,
+                    speed: 0.01 + Math.random() * 0.02,
+                    color: Math.random() > 0.5 ? '#ff7c42' : '#00e5ff'
+                });
+            }
+
+            if (particleInterval) clearInterval(particleInterval);
+            particleInterval = setInterval(emitParticle, 50);
+
+            function animate() {
+                if (currentPage !== 'training' || !particleInterval) return;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw static connections
+                ctx.lineWidth = 0.5;
+                if (neuronPositions.length > 1) {
+                    for (let i = 0; i < neuronPositions.length - 1; i++) {
+                        const currentLayer = neuronPositions[i];
+                        const nextLayer = neuronPositions[i + 1];
+                        currentLayer.forEach(startNeuron => {
+                            nextLayer.forEach(endNeuron => {
+                                ctx.beginPath();
+                                ctx.strokeStyle = Math.random() > 0.5 ? 'rgba(255, 124, 66, 0.15)' : 'rgba(0, 229, 255, 0.15)';
+                                ctx.moveTo(startNeuron.x, startNeuron.y);
+                                ctx.lineTo(endNeuron.x, endNeuron.y);
+                                ctx.stroke();
+                            });
+                        });
+                    }
+                }
+
+                // Draw and update particles (signals) as dots
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.progress += p.speed;
+
+                    if (p.progress >= 1) {
+                        particles.splice(i, 1);
+                    } else {
+                        const currentX = p.startX + (p.endX - p.startX) * p.progress;
+                        const currentY = p.startY + (p.endY - p.startY) * p.progress;
+                        const alpha = Math.sin(p.progress * Math.PI); // Fade in and out
+
+                        ctx.beginPath();
+                        ctx.arc(currentX, currentY, 2.5, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+                        ctx.shadowColor = 'white';
+                        ctx.shadowBlur = 8;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function createSatellite3D(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            let animationFrameId;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.innerHTML = '';
+            container.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.enableZoom = false;
+            controls.enablePan = false;
+
+            const bodyGeom = new THREE.BoxGeometry(2, 2, 2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 1, roughness: 0.5 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            scene.add(body);
+
+            const panelGeom = new THREE.BoxGeometry(5, 2, 0.1);
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0x002244, metalness: 0.2, roughness: 0.8 });
+            const panel1 = new THREE.Mesh(panelGeom, panelMat);
+            panel1.position.x = 3.5;
+            const panel2 = panel1.clone();
+            panel2.position.x = -3.5;
+            body.add(panel1);
+            body.add(panel2);
+
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(5, 5, 5);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            camera.position.z = 5;
+
+            const animate = () => {
+                animationFrameId = requestAnimationFrame(animate);
+                controls.update();
+                body.rotation.y += 0.005;
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            const resizeObserver = new ResizeObserver(() => {
+                if (!container.clientWidth) return;
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+            resizeObserver.observe(container);
+
+            return {
+                stop: () => {
+                    cancelAnimationFrame(animationFrameId);
+                    resizeObserver.disconnect();
+                    if (container.contains(renderer.domElement)) {
+                        container.removeChild(renderer.domElement);
+                    }
+                }
+            };
+        }
+
+        function initializeMap() {
+            const mapContainer = document.getElementById('world-map-container');
+            mapContainer.querySelectorAll('.satellite-dot').forEach(dot => dot.remove());
+            for (let i = 0; i < 15; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'satellite-dot';
+                mapContainer.appendChild(dot);
+                gsap.to(dot, { 
+                    x: () => Math.random() * mapContainer.offsetWidth, 
+                    y: () => Math.random() * mapContainer.offsetHeight, 
+                    duration: 5 + Math.random() * 5, 
+                    repeat: -1, 
+                    yoyo: true, 
+                    ease: "sine.inOut", 
+                    delay: Math.random() * 2 
+                });
+            }
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function initializeFileUpload() {
+            const fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file && file.type === "text/csv") {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        showNotification(`Processing ${file.name}...`);
+                        setTimeout(() => {
+                            processCSV(e.target.result);
+                            showNotification('Data processed and charts updated!');
+                        }, 1500);
+                    };
+                    reader.readAsText(file);
+                } else {
+                    showNotification('Please upload a valid CSV file.');
+                }
+            });
+        }
+
+        function processCSV(csvText) {
+            const lines = csvText.split('\n').slice(1);
+            const xErrors = [], yErrors = [], zErrors = [];
+            lines.forEach(line => {
+                const cols = line.split(',');
+                if (cols.length >= 3) {
+                    xErrors.push(parseFloat(cols[0]));
+                    yErrors.push(parseFloat(cols[1]));
+                    zErrors.push(parseFloat(cols[2]));
+                }
+            });
+
+            if (charts.geoError) {
+                charts.geoError.data.datasets[0].data = [getStdDev(xErrors), getStdDev(yErrors), getStdDev(zErrors), getStdDev(zErrors.map(z => z * Math.random()))];
+                charts.geoError.update();
+            }
+            if (charts.meoTime) {
+                charts.meoTime.data.labels = lines.map((_, i) => `T-${lines.length - i}`).slice(0, 100); // Limit labels
+                charts.meoTime.data.datasets[0].data = xErrors.slice(0, 100);
+                charts.meoTime.data.datasets[1].data = yErrors.slice(0, 100);
+                charts.meoTime.update();
+            }
+
+            const insightsEl = document.getElementById('stats-insights');
+            insightsEl.innerHTML = `<h3 class="card-title">Key Statistical Insights</h3>
+            <p><strong>Total Records Analyzed:</strong> ${lines.length}</p>
+            <p><strong>X-Axis Error (Std Dev):</strong> ${getStdDev(xErrors).toFixed(3)}m</p>
+            <p><strong>Y-Axis Error (Std Dev):</strong> ${getStdDev(yErrors).toFixed(3)}m</p>
+            <p><strong>Z-Axis Error (Std Dev):</strong> ${getStdDev(zErrors).toFixed(3)}m</p>`;
+        }
+
+        function getStdDev(arr) {
+            const n = arr.length;
+            if (n === 0) return 0;
+            const mean = arr.reduce((a, b) => a + b) / n;
+            return Math.sqrt(arr.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / n);
+        }
+
+        function initializeRealtimeClock() {
+            const clockElement = document.getElementById('realtime-clock');
+            function updateClock() {
+                const now = new Date();
+                clockElement.textContent = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        function animateCounters() {
+            document.querySelectorAll('.stat-number').forEach(counter => {
+                if (counter.id === 'realtime-clock') return;
+                const target = parseFloat(counter.dataset.target);
+                let obj = { val: 0 };
+                gsap.to(obj, {
+                    val: target,
+                    duration: 2,
+                    ease: "power3.out",
+                    onUpdate: () => {
+                        counter.textContent = target % 1 !== 0 ? obj.val.toFixed(1) : Math.ceil(obj.val);
+                    }
+                });
+            });
+        }
+
+        function initializeSliders() {
+            const sliders = [
+                { slider: 'learningRate', value: 'learningRateValue' }, { slider: 'batchSize', value: 'batchSizeValue' },
+                { slider: 'refreshRate', value: 'refreshRateValue' }, { slider: 'threadCount', value: 'threadCountValue' },
+                { slider: 'alertClock', value: 'alertClockValue' }, { slider: 'alertEphemeris', value: 'alertEphemerisValue' }
+            ];
+            sliders.forEach(item => {
+                const sliderEl = document.getElementById(item.slider);
+                const valueEl = document.getElementById(item.value);
+                if (sliderEl && valueEl) {
+                    sliderEl.addEventListener('input', () => { valueEl.textContent = sliderEl.value; });
+                }
+            });
+        }
+
+        function generateTimeLabels(count) { return Array.from({ length: count }, (_, i) => `T-${count - i}`); }
+        function generateRandomData(count, mean, std) { return Array.from({ length: count }, () => mean + (Math.random() - 0.5) * 2 * std); }
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 3000);
+        }
+        function generateReport(type) {
+            showNotification(`Generating ${type} report...`);
+            setTimeout(() => {
+                const date = new Date().toISOString().split('T')[0];
+                const newReportHTML = `<p>📄 ${type}_Report_${date}.pdf - <span style="color: var(--accent-cyan);">Ready</span></p>`;
+                document.getElementById('reportsList').insertAdjacentHTML('afterbegin', newReportHTML);
+                showNotification(`${type} report generated successfully!`);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

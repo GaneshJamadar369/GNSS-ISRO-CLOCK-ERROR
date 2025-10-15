@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISRO GNSS AI System - Authentication</title>
+<link rel="shortcut icon" href="https://raw.githubusercontent.com/ab-11-22/assests/main/ISRO-Color.png" type="image/x-icon">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --primary-dark: #020a1a;
+    --primary-blue: #0a2a4e;
+    --accent-orange: #ff7c42;
+    --accent-cyan: #00e5ff;
+    --white: #e6f1ff;
+    --glass-bg: rgba(2, 10, 26, 0.6);
+    --glass-border: rgba(0, 229, 255, 0.2);
+    --error-red: #ff4d4d;
+    --success-green: #4ade80;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+    font-family:"Inter",sans-serif;
+    background-color:var(--primary-dark);
+    color:var(--white);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    overflow:hidden;
+}
+#bg-canvas{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100vw;
+    height:100vh;
+    z-index:-1;
+}
+.signup-container{
+    width:85vmin;
+    height:85vmin;
+    aspect-ratio:1/1;
+    max-width:500px;
+    max-height:700px;
+    min-width:320px;
+    min-height:380px;
+}
+.signup-card{
+    width:100%;
+    height:100%;
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    border-radius:15px;
+    backdrop-filter:blur(10px);
+    padding:2rem;
+    text-align:center;
+    box-shadow:0 0 25px rgba(0,229,255,0.15),0 8px 30px rgba(0,0,0,0.3);
+    animation:fadeInScale 1s ease-out;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    transform-origin:center;
+}
+@keyframes fadeInScale{
+    0%{opacity:0; transform:translateY(20px) scale(0.95);}
+    100%{opacity:1; transform:translateY(0) scale(1);}
+}
+.logo-container{
+    margin-bottom:1.5rem;
+}
+.logo-container img{height:35px;margin-bottom:0.75rem;}
+.logo-container h1{font-size:1.8rem;font-weight:600;color:var(--white);}
+.logo-container p{font-size:0.9rem;opacity:0.8;margin-top:0.3rem;}
+#authForm{width:100%;transition:height 0.3s ease;}
+.form-group{margin-bottom:0.85rem;text-align:left;position:relative;transition:all 0.3s ease-out;}
+.form-icon{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--accent-cyan);opacity:0.6;font-size:1.1rem;}
+.form-input{
+    width:100%;
+    padding:12px 15px 12px 45px;
+    background:rgba(2,10,26,0.7);
+    border:1px solid var(--glass-border);
+    border-radius:8px;
+    color:var(--white);
+    font-size:1rem;
+    transition:border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+.form-input::placeholder{color:var(--white);opacity:0.6;}
+.form-input:focus{
+    outline:none;
+    border-color:var(--accent-cyan);
+    box-shadow:0 0 15px rgba(0,229,255,0.3);
+    transform:scale(1.02);
+}
+#statusMessage{padding:10px;border-radius:8px;font-weight:500;margin-bottom:1rem;display:none;font-size:0.9rem;text-align:left;}
+.error{background-color:rgba(255,77,77,0.15);color:var(--error-red);border:1px solid var(--error-red);}
+.success{background-color:rgba(74,222,128,0.15);color:var(--success-green);border:1px solid var(--success-green);}
+.captcha-container{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem;height:40px;}
+#captchaCanvas{border-radius:6px;flex-grow:1;height:40px !important;max-width:150px;min-width:100px;}
+#refreshCaptcha{
+    background:none;
+    border:1px solid var(--glass-border);
+    border-radius:8px;
+    color:var(--accent-cyan);
+    font-size:1.5rem;
+    cursor:pointer;
+    transition:all 0.3s ease;
+    width:40px;height:40px;
+    flex-shrink:0;
+}
+#refreshCaptcha:hover{transform:rotate(90deg);background:rgba(0,229,255,0.1);}
+.error-message{color:var(--error-red);font-size:0.8rem;text-align:left;margin-top:5px;display:none;}
+.btn-primary{
+    width:100%;
+    padding:14px;
+    border-radius:8px;
+    font-size:1rem;
+    font-weight:700;
+    cursor:pointer;
+    text-align:center;
+    text-decoration:none;
+    transition:transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, filter 0.3s ease;
+    background:var(--accent-orange);
+    color:var(--white);
+    border:none;
+    margin-top:1rem;
+}
+.btn-primary:hover{
+    transform:translateY(-3px);
+    box-shadow:0 8px 25px rgba(255,124,66,0.5);
+    background:#ff5e0e;
+    filter:brightness(1.1);
+}
+.form-footer{display:flex;justify-content:center;margin-top:1.5rem;font-size:0.85rem;gap:5px;}
+.form-footer button{background:none;border:none;padding:0;cursor:pointer;color:var(--accent-cyan);text-decoration:none;font-weight:600;transition:text-decoration 0.3s ease;}
+.form-footer button:hover{text-decoration:underline;}
+#successPopup {
+    position: fixed;top: 50%;left: 50%;transform: translate(-50%, -50%) scale(0);
+    background: rgba(0, 229, 255, 0.95);color: var(--primary-dark);
+    padding: 2rem;border-radius: 12px;text-align: center;font-weight: 600;z-index: 1000;
+    transition: transform 0.3s ease;
+}
+#successPopup button {margin-top: 1rem;padding: 8px 16px;border: none;border-radius: 6px;background: var(--primary-dark);color: var(--accent-cyan);font-weight: 600;cursor: pointer;}
+@keyframes shake{
+    0%{transform:translateX(0);}
+    25%{transform:translateX(-5px);}
+    50%{transform:translateX(5px);}
+    75%{transform:translateX(-5px);}
+    100%{transform:translateX(0);}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="signup-container">
+    <div class="signup-card">
+        <div class="logo-container">
+            <img src="./images/isro.jpg" alt="ISRO Logo" style="height:50px;">
+            <h1 id="titleText">GNSS AI System</h1>
+            <p id="subtitleText">Secure System Access Registration</p>
+        </div>
+
+        <div id="statusMessage" class="error"></div>
+
+        <form id="authForm" novalidate>
+            <div class="form-group" id="fullNameGroup">
+                <i class="ri-user-3-line form-icon"></i>
+                <input type="text" id="fullName" class="form-input" placeholder="Full Name" required>
+                <div class="error-message" id="fullNameError">Full name is required.</div>
+            </div>
+            
+            <div class="form-group">
+                <i class="ri-mail-line form-icon"></i>
+                <input type="email" id="email" class="form-input" placeholder="Email Address" required>
+                <div class="error-message" id="emailError">Please enter a valid email.</div>
+            </div>
+
+            <div class="form-group">
+                <i class="ri-lock-password-line form-icon"></i>
+                <input type="password" id="password" class="form-input" placeholder="Password (min 8 chars)" required>
+                <div class="error-message" id="passwordError">Password must be at least 8 characters.</div>
+            </div>
+
+            <div class="form-group" id="confirmPasswordGroup">
+                <i class="ri-lock-password-line form-icon"></i>
+                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm Password" required>
+                <div class="error-message" id="confirmPasswordError">Passwords do not match.</div>
+            </div>
+            
+            <div class="form-group" id="captchaGroup">
+                <div class="captcha-container">
+                    <canvas id="captchaCanvas" width="200" height="40"></canvas>
+                    <button type="button" id="refreshCaptcha" title="Refresh Captcha"><i class="ri-refresh-line"></i></button>
+                </div>
+                <input type="text" id="captchaInput" class="form-input" style="padding-left:15px;" placeholder="Enter security code" required>
+                <div class="error-message" id="captchaInputError">Invalid security code.</div>
+            </div>
+
+            <button type="submit" id="submitButton" class="btn-primary">Create Account</button>
+
+            <div class="form-footer">
+                <span id="footerText">Already have an account?</span>
+                <button type="button" id="toggleModeButton">Login</button>
+            </div>
+        </form>
+        
+        <p id="authStatusIndicator" style="font-size:0.75rem;margin-top:1rem;opacity:0.6;">Initializing...</p>
+    </div>
+</div>
+
+<div id="successPopup">
+    <p id="successPopupMessage">Account Created Successfully!</p>
+    <button id="closePopup">Login</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+// Firebase setup
+const firebaseConfig = {
+  apiKey: "AIzaSyBWa6uK4v8iotzMhIR90pOh4LrPIPt1XJc",
+  authDomain: "isro-b9a7c.firebaseapp.com",
+  projectId: "isro-b9a7c",
+  storageBucket: "isro-b9a7c.appspot.com",
+  messagingSenderId: "262463325741",
+  appId: "1:262463325741:web:0052ac0e977f4bc73cdaa4",
+  measurementId: "G-RZLD6E6E30"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Three.js Particle Background
+let scene,camera,renderer,particleSystem;
+let mouse=new THREE.Vector2();
+function initParticles(){
+    scene=new THREE.Scene();
+    camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+    camera.position.z=300;
+    renderer=new THREE.WebGLRenderer({canvas:document.getElementById('bg-canvas'),antialias:true,alpha:true});
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    renderer.setClearColor(0x000000,0);
+    const particleCount=5000;
+    const particles=new THREE.BufferGeometry();
+    const positions=new Float32Array(particleCount*3);
+    for(let i=0;i<particleCount*3;i++) positions[i]=(Math.random()-0.5)*1000;
+    particles.setAttribute('position',new THREE.BufferAttribute(positions,3));
+    const particleMaterial=new THREE.PointsMaterial({color:0x00e5ff,size:1.5,blending:THREE.AdditiveBlending,transparent:true,opacity:0.7});
+    particleSystem=new THREE.Points(particles,particleMaterial);
+    scene.add(particleSystem);
+    window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+    document.addEventListener('mousemove',e=>{mouse.x=(e.clientX/window.innerWidth)*2-1; mouse.y=-(e.clientY/window.innerHeight)*2+1;});
+    animateParticles();
+}
+function animateParticles(){
+    requestAnimationFrame(animateParticles);
+    particleSystem.rotation.y+=0.0002;
+    const positions=particleSystem.geometry.attributes.position.array;
+    const time=Date.now()*0.00005;
+    for(let i=0;i<positions.length;i+=3){ positions[i+1]+=Math.sin(time+positions[i]*0.5)*0.3; }
+    particleSystem.geometry.attributes.position.needsUpdate=true;
+    camera.position.x+=(mouse.x*20-camera.position.x)*0.02;
+    camera.position.y+=(-mouse.y*20-camera.position.y)*0.02;
+    camera.lookAt(scene.position);
+    renderer.render(scene,camera);
+}
+initParticles();
+
+// Captcha
+const captchaCanvas=document.getElementById('captchaCanvas');
+const ctx=captchaCanvas.getContext('2d');
+let captchaText='';
+function generateCaptcha(){
+    captchaCanvas.width=200; captchaCanvas.height=40;
+    let result=''; const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for(let i=0;i<6;i++) result+=chars.charAt(Math.floor(Math.random()*chars.length));
+    captchaText=result;
+    drawCaptcha();
+}
+function drawCaptcha(){
+    const w=captchaCanvas.width,h=captchaCanvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='rgba(2,10,26,0.5)'; ctx.fillRect(0,0,w,h);
+    ctx.font=`bold ${h*0.6}px Inter`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    for(let i=0;i<captchaText.length;i++){
+        const x=w/(captchaText.length+1)*(i+1);
+        const y=h/2+(Math.random()-0.5)*(h*0.2);
+        const angle=(Math.random()-0.5)*0.3;
+        ctx.save(); ctx.translate(x,y); ctx.rotate(angle);
+        ctx.fillStyle=`hsl(${200+Math.random()*50},90%,75%)`; ctx.fillText(captchaText[i],0,0);
+        ctx.restore();
+    }
+}
+document.getElementById('refreshCaptcha').addEventListener('click',generateCaptcha);
+
+// Auth form
+document.addEventListener('DOMContentLoaded',()=>{
+    let isLoginMode=false;
+    const fullNameGroup=document.getElementById('fullNameGroup');
+    const confirmPasswordGroup=document.getElementById('confirmPasswordGroup');
+    const authForm=document.getElementById('authForm');
+    const successPopup=document.getElementById('successPopup');
+    const successPopupMessage=document.getElementById('successPopupMessage');
+    const closePopup=document.getElementById('closePopup');
+
+    function showPopup(message){
+        successPopupMessage.textContent=message;
+        successPopup.style.transform='translate(-50%, -50%) scale(1)';
+        setTimeout(()=>{
+            successPopup.style.transform='translate(-50%, -50%) scale(0)';
+        },3000);
+    }
+    closePopup.addEventListener('click',()=>{successPopup.style.transform='translate(-50%, -50%) scale(0)';});
+    
+    document.getElementById('toggleModeButton').addEventListener('click',()=>{
+        isLoginMode=!isLoginMode;
+        if(isLoginMode){ fullNameGroup.style.display='none'; confirmPasswordGroup.style.display='none'; document.getElementById('submitButton').textContent='Login'; }
+        else{ fullNameGroup.style.display='block'; confirmPasswordGroup.style.display='block'; document.getElementById('submitButton').textContent='Create Account'; }
+        generateCaptcha();
+    });
+
+    authForm.addEventListener('submit',(e)=>{
+        e.preventDefault();
+        const fullName=document.getElementById('fullName').value.trim();
+        const email=document.getElementById('email').value.trim();
+        const password=document.getElementById('password').value.trim();
+        const confirmPassword=document.getElementById('confirmPassword').value.trim();
+        const captchaInput=document.getElementById('captchaInput').value.trim();
+        let valid=true;
+
+        if(!isLoginMode && fullName===''){document.getElementById('fullNameError').style.display='block'; valid=false;} else document.getElementById('fullNameError').style.display='none';
+        const emailRegex=/^[^\s@]+@[^\s@]+\.[^\s@]+$/; if(!emailRegex.test(email)){document.getElementById('emailError').style.display='block'; valid=false;} else document.getElementById('emailError').style.display='none';
+        if(!isLoginMode && password.length<8){document.getElementById('passwordError').style.display='block'; valid=false;} else document.getElementById('passwordError').style.display='none';
+        if(!isLoginMode && password!==confirmPassword){document.getElementById('confirmPasswordError').style.display='block'; valid=false;} else document.getElementById('confirmPasswordError').style.display='none';
+        if(!isLoginMode && captchaInput.toUpperCase()!==captchaText){document.getElementById('captchaInputError').style.display='block'; captchaCanvas.classList.add('shake'); setTimeout(()=>{captchaCanvas.classList.remove('shake');},500); valid=false;} else document.getElementById('captchaInputError').style.display='none';
+
+        if(!valid) return;
+
+        if(!isLoginMode){
+            db.collection('users').doc(email).set({fullName,email,password})
+            .then(()=>{
+                showPopup('Account created successfully!'); 
+                authForm.reset(); 
+                generateCaptcha();
+                // Redirect to login.html after 3 seconds
+                setTimeout(()=>{ window.location.href = 'login.html'; }, 3000);
+            })
+            .catch(err=>{alert('Error:'+err.message);});
+        } else {
+            db.collection('users').doc(email).get().then(doc=>{
+                if(doc.exists && doc.data().password===password){ showPopup('Logged in successfully!'); authForm.reset();} 
+                else{ alert('Invalid email or password!'); }
+            }).catch(err=>{alert('Error:'+err.message);});
+        }
+    });
+});
+generateCaptcha();
+</script>
+</body>
+</html>
